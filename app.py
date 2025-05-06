@@ -30,7 +30,7 @@ def login():
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         if st.button("Log in"):
-            if username == "test" and password == "test":
+            if username == "admin" and password == "admin":
                 st.session_state.logged_in = True
                 st.session_state.user_role = "Admin"
                 st.rerun()
@@ -51,9 +51,9 @@ def prompt():
     st.title("Prompt Generation")
 
     client = AzureOpenAI(
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-08-01-preview"
+        azure_endpoint=os.getenv("AZURE_OPENAI_CODE_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_CODE_API_KEY"),
+        api_version="2024-12-01-preview"
     )
 
     col1, col2, col3 = st.columns(3)
@@ -138,7 +138,7 @@ def prompt():
                 full_response = ""
 
                 for response in client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-4.1",
                     messages=[{"role": "system", "content": META_PROMPT},
                             {"role": "user", "content": "Task, Goal, or Current Prompt:\n" + task_or_prompt}],
                     stream=True,
@@ -239,7 +239,7 @@ def prompt():
                 full_response = ""
 
                 for response in client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-4.1",
                     messages=[{"role": "system", "content": META_EDIT},
                             {"role": "user", "content": "Task, Goal, or Current Prompt:\n" + edit_or_prompt}],
                     stream=True,
@@ -543,7 +543,7 @@ def text():
     st.title("Text Generation")
 
     ## Vector Embedding And Vector Store
-    embedding = AzureOpenAIEmbeddings(azure_deployment="text-embedding-3-large", chunk_size = 1500)
+    embedding = AzureOpenAIEmbeddings(azure_deployment="text-embedding-3-large", chunk_size = 2500)
     st.session_state.vector_store = Chroma(
         embedding_function=embedding,
         persist_directory="./streamlit_tmp/chroma_db",
@@ -562,32 +562,29 @@ def text():
         with container:
             option = st.segmented_control(
                 "option",
-                ["GPT-4o", "o1-preview"],
+                ["gpt-4.1", "o3"],
                 label_visibility="collapsed"
             )
 
     
 
-    if option != "GPT-4o" and option != "o1-preview":
+    if option != "gpt-4.1" and option != "o3":
         st.info("From given prompts, models can generate almost any kind of text response, like code, mathematical equations, structured JSON data, or human-like prose.")
     
-    if option == "GPT-4o":
-        st.info("GPT-4o (“o” for “omni”) is our most advanced GPT model. It is multimodal (accepting text or image inputs and outputting text), and it has the same high intelligence as GPT-4 Turbo but is much more efficient  \n- **Context Window** - 128,000 tokens  \n- **Maximum Output** - 16,384 tokens")
+    if option == "gpt-4.1":
+        st.info("GPT-4.1 is our flagship model for complex tasks. It is well suited for problem solving across domains.  \n- **Context Window** - 1,047,576 tokens  \n- **Maximum Output** - 32,768 tokens  \n- **Knowledge cutoff** - Jun 01, 2024")
 
-    if option == "o1-preview":
-        st.info("The o1 series of large language models are trained with reinforcement learning to perform complex reasoning. o1 models think before they answer, producing a long internal chain of thought before responding to the user.  \n- **Context Window** - 128,000 tokens  \n- **Maximum Output** - 32,768 tokens")
-
-        with st.expander("**Beta Limitations**"):
-            st.warning("During the beta phase, many chat completion API parameters are not yet available. Most notably:  \n- **Modalities:** text only, images are not supported.  \n- **Message types:** user and assistant messages only, system messages are not supported.  \n- **Tools:** tools, function calling, and response format parameters are not supported.  \n- **Logprobs:** not supported.  \n- **Other:** `temperature` and `top_p` are fixed at 1, while `presence_penalty` and `frequency_penalty` are fixed at `0`.  \n- **Assistants and Batch:** these models are not supported in the Assistants API or Batch API.")
+    if option == "o3":
+        st.info("o3 is a well-rounded and powerful model across domains. It sets a new standard for math, science, coding, and visual reasoning tasks. It also excels at technical writing and instruction-following. Use it to think through multi-step problems that involve analysis across text, code, and images.  \n- **Context Window** - 200,000 tokens  \n- **Maximum Output** - 100,000 tokens  \n- **Knowledge cutoff** - Jun 01, 2024")
 
     st.sidebar.title("Chat Control")
 
     if st.sidebar.button("Clear Chat History"):
         st.session_state.chat_history.clear()
-        st.session_state.message_history.clear()
+        st.session_state.message_history = [{"role": "developer", "content": "Formatting re-enabled"}]
     
 
-    if option == "GPT-4o":
+    if option == "gpt-4.1":
         with st.expander("**Options**", expanded=False):
             with st.container(border=True):
                 col1, col2, col3 = st.columns(3)
@@ -601,10 +598,10 @@ def text():
             rag = st.toggle("Activate RAG")
             if rag:
                 llm = AzureChatOpenAI(
-                    azure_deployment="gpt-4o",
-                    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-                    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                    api_version="2024-08-01-preview",
+                    azure_deployment="gpt-4.1",
+                    azure_endpoint=os.getenv("AZURE_OPENAI_CODE_ENDPOINT"),
+                    api_key=os.getenv("AZURE_OPENAI_CODE_API_KEY"),
+                    api_version="2024-12-01-preview",
                     temperature=temperature,
                     max_tokens=max_tokens,
                     streaming=True
@@ -639,7 +636,7 @@ def text():
                                 if os.path.exists(file_path):
                                     os.remove(file_path)
 
-                    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=150)  
+                    text_splitter = RecursiveCharacterTextSplitter(chunk_size=2500, chunk_overlap=250)  
                     all_docs = text_splitter.split_documents(docs)  
 
                     st.session_state.vector_store.add_documents(documents=all_docs)
@@ -688,15 +685,15 @@ def text():
 
         if not rag:
             if "message_history" not in st.session_state:
-                st.session_state.message_history = []
+                st.session_state.message_history = [{"role": "developer", "content": "Formatting re-enabled"}]
 
             client = AzureOpenAI(
-                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-                api_version="2024-08-01-preview"
+                azure_endpoint=os.getenv("AZURE_OPENAI_CODE_ENDPOINT"),
+                api_key=os.getenv("AZURE_OPENAI_CODE_API_KEY"),
+                api_version="2024-12-01-preview"
             )
 
-            for message in st.session_state.message_history:  # Skip the system message
+            for message in st.session_state.message_history[1:]:  # Skip the system message
                 if isinstance(message["content"], str):
                     with st.chat_message(message["role"]):
                         st.markdown(message["content"])
@@ -712,7 +709,7 @@ def text():
                     full_response = ""
 
                     for response in client.chat.completions.create(
-                        model="gpt-4o",
+                        model="gpt-4.1",
                         messages=st.session_state.message_history,
                         stream=True,
                         temperature=temperature,
@@ -725,66 +722,71 @@ def text():
 
                 st.session_state.message_history.append({"role": "assistant", "content": full_response})
 
-    if option == "o1-preview":
+    if option == "o3":
         if "message_history" not in st.session_state:
-            st.session_state.message_history = []
+            st.session_state.message_history = [{"role": "developer", "content": "Formatting re-enabled"}]
 
         client = AzureOpenAI(
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            api_version="2024-08-01-preview"
+            azure_endpoint=os.getenv("AZURE_OPENAI_CODE_ENDPOINT"),
+            api_key=os.getenv("AZURE_OPENAI_CODE_API_KEY"),
+            api_version="2024-12-01-preview"
         )
 
-        for message in st.session_state.message_history:  # Skip the system message
+        for message in st.session_state.message_history[1:]:  # Skip the system message
             if isinstance(message["content"], str):
                 with st.chat_message(message["role"]):
                     st.markdown(message["content"])
 
         if prompt := st.chat_input("Your Query Here"):
-            st.session_state.message_history.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.text(prompt)
+                st.session_state.message_history.append({"role": "user", "content": prompt})
+                with st.chat_message("user"):
+                    st.text(prompt)
 
-            # Get response from the model
-            with st.chat_message("assistant"):
-                response = client.chat.completions.create(
-                    model="o1-preview",
-                    messages=st.session_state.message_history,
-                )
-                final_response = response.choices[0].message.content
-                st.markdown(final_response)
+                # Get response from the model
+                with st.chat_message("assistant"):
+                    message_placeholder = st.empty()
+                    full_response = ""
 
-            st.session_state.message_history.append({"role": "assistant", "content": final_response})
+                    for response in client.chat.completions.create(
+                        model="o3",
+                        messages=st.session_state.message_history,
+                        reasoning_effort="high",
+                        stream=True
+                    ):
+                        if response.choices and response.choices[0].delta:
+                            full_response += (response.choices[0].delta.content or "")
+                            message_placeholder.markdown(full_response + "▌")
+                    message_placeholder.markdown(full_response)
+
+                st.session_state.message_history.append({"role": "assistant", "content": full_response})
 
         
 
 def vision():
     client = AzureOpenAI(
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-08-01-preview"
+        azure_endpoint=os.getenv("AZURE_OPENAI_CODE_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_CODE_API_KEY"),
+        api_version="2024-12-01-preview"
     )
 
     st.title("Vision")
 
-    st.info("GPT-4o has vision capability, meaning the model can take in images and answer questions about them. Historically, language model systems have been limited by taking in a single input modality, text.")
+    st.info("o3 has vision capability, meaning the model can take in images and answer questions about them. Historically, language model systems have been limited by taking in a single input modality, text.")
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        st.session_state.messages = [{"role": "developer", "content": "Formatting re-enabled"}]
 
     st.sidebar.title("Chat Control")
     uploaded_image = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png", "webp"])
 
     if st.sidebar.button("Clear Chat History"):
-        st.session_state.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        st.session_state.messages = [{"role": "developer", "content": "Formatting re-enabled"}]
 
     for message in st.session_state.messages[1:]:  # Skip the system message
         if isinstance(message["content"], str) and not message["content"].startswith("data:image"):
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
     
-    with st.expander("**Limitations**"):
-        st.warning("While GPT-4 with vision is a powerful tool that can be utilized in various contexts, it is crucial to be aware of its limitations. Here are some known limitations of the model: \n- **Medical Images:** The model is not suitable for interpreting specialized medical images such as CT scans and should not be used for medical advice. \n- **Non-English Text:** It may not perform optimally when processing images with text in non-Latin alphabets, such as Japanese or Korean. \n- **Small Text:** Enlarging text in images improves readability but avoid cropping out important details. \n- **Rotation:** The model might incorrectly interpret rotated or upside-down text and images. \n- **Visual Elements:** Understanding graphs or varying text styles (solid, dashed, or dotted lines) can pose a challenge. \n- **Spatial Reasoning:** The model struggles with tasks requiring precise spatial localization, like identifying chess positions. \n- **Accuracy:** It may generate incorrect descriptions or captions in certain scenarios. \n- **Image Shape:** It has difficulty with panoramic and fisheye images. \n- **Metadata and Resizing:** Original file names or metadata aren't processed, and images are resized before analysis, affecting their original dimensions. \n- **Counting:** May provide approximate counts for objects in images. \n- **CAPTCHAS:** For safety reasons, the submission of CAPTCHAs is blocked.")
 
     if uploaded_image:
         if prompt := st.chat_input("Your Query Here"):
@@ -823,8 +825,9 @@ def vision():
                     st.session_state.messages.append(image_prompt)
 
                 for response in client.chat.completions.create(
-                    model="gpt-4o",
+                    model="o3",
                     messages=st.session_state.messages,
+                    reasoning_effort="high",
                     stream=True,
                 ):
                     if response.choices and response.choices[0].delta:
@@ -852,7 +855,7 @@ if st.session_state.logged_in:
         }
     else:  # Guest
         pages = {
-            "Capabilities": [text_page, prompt_page],
+            "Capabilities": [text_page, vision_page, prompt_page],
             "Your Account": [logout_page]
         }
 else:
